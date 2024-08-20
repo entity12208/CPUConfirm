@@ -1,4 +1,12 @@
-"scripts": {
+{
+  "name": "CPUConfirm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
     "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^13.1.7"
+  }
 }
-
