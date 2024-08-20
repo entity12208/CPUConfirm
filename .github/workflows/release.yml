@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'  # Triggers the workflow on version tags
+    branches:
+      - '**'  # Triggers the workflow on commits to any branch
 
 jobs:
   build:
