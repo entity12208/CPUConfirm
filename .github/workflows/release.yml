@@ -1,53 +1,69 @@
-name: Build and Release
+name: Build and Release CPUConfirm
 
 on:
   push:
-    branches:
-      - '**'  # Triggers the workflow on commits to any branch
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
 
-      - name: Install dependencies
+      - name: Install Node.js dependencies
         run: npm install
 
-      - name: Build project
-        run: npm run build
-
-      - name: Package project
+      - name: Set up C++ build tools
         run: |
-          npm run package
-          # Assuming your packaging script creates a .exe file in the dist directory
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+      
+      - name: Build C/C++ files
+        run: |
+          mkdir -p build
+          gcc -o build/output_c_program src/*.c
+          g++ -o build/output_cpp_program src/*.cpp
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
+      - name: Package the .exe file
+        run: |
+          mkdir -p dist
+          # Combine all necessary binaries into a single exe using tools like MinGW on Linux
+          x86_64-w64-mingw32-g++ -o dist/CPUConfirm.exe src/main.cpp -static
+          
+      - name: Create the release asset
+        uses: actions/upload-artifact@v3
         with:
-          name: my-app
-          path: dist/*.exe
+          name: CPUConfirm.exe
+          path: dist/CPUConfirm.exe
 
   release:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: my-app
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
         with:
-          files: dist/*.exe
+          name: CPUConfirm.exe
+
+      - name: Create GitHub release
+        uses: actions/create-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            Release notes for CPUConfirm version ${{ github.ref_name }}.
+          files: |
+            CPUConfirm.exe
