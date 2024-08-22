@@ -1,73 +1,61 @@
-name: Build and Release CPUConfirm
+name: Build and Release
 
 on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '.github/**'
   workflow_dispatch:
+  commit_comment:
+    types: [created]
 
 jobs:
   build:
-    if: "contains(github.event.head_commit.message, 'release')"
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Install Node.js dependencies
-        run: npm install
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
 
-      - name: Set up C++ build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-      
-      - name: Build C/C++ files
-        run: |
-          mkdir -p build
-          gcc -o build/output_c_program src/*.c
-          g++ -o build/output_cpp_program src/*.cpp
+    - name: Compile C/C++ code
+      run: |
+        gcc -o output/executable src/*.c src/*.cpp  # Adjust the path if needed
+        g++ -o output/executable src/*.cpp  # For C++ files
 
-      - name: Package the .exe file
-        run: |
-          mkdir -p dist
-          # Combine all necessary binaries into a single exe using tools like MinGW on Linux
-          x86_64-w64-mingw32-g++ -o dist/CPUConfirm.exe src/main.cpp -static
-          
-      - name: Create the release asset
-        uses: actions/upload-artifact@v3
-        with:
-          name: CPUConfirm.exe
-          path: dist/CPUConfirm.exe
+    - name: Package the executable
+      run: zip -r output/CPUConfirm.zip output/executable
+
+    - name: Upload Release Asset
+      uses: actions/upload-artifact@v3
+      with:
+        name: CPUConfirm
+        path: output/CPUConfirm.zip
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'release')
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Create a Release
+      uses: actions/create-release@v3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v1.0.0
+        release_name: CPUConfirm Release
+        draft: false
+        prerelease: false
+        generate_release_notes: true
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: CPUConfirm.exe
-
-      - name: Create GitHub release
-        uses: actions/create-release@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body: |
-            Release notes for CPUConfirm version ${{ github.ref_name }}.
-          files: |
-            CPUConfirm.exe
+    - name: Upload to Release
+      uses: actions/upload-release-asset@v3
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: output/CPUConfirm.zip
+        asset_name: CPUConfirm.zip
+        asset_content_type: application/zip
